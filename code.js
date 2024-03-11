@@ -1,4 +1,5 @@
 app.post('/api/extract', upload.single('file'), async (req, res) => {
+    // REVIEW: add validation to endpoint before using req.body properties
     logInfo('POST /api/extract',req.body);
     logInfo('FILE=',req.file);
 
@@ -8,6 +9,7 @@ app.post('/api/extract', upload.single('file'), async (req, res) => {
         const project = req.body.project;
         const idUser = req.body.userID;
         const user = await User.findOne(idUser);
+        // REVIEW: missing exceptions handler (try catch) for entire scope
 
         if (requestID && project && idUser && user) {
             logDebug('User with role '+user.role, user);
@@ -20,10 +22,12 @@ app.post('/api/extract', upload.single('file'), async (req, res) => {
             logDebug('CONFIG:', config.projects);
             if (project === 'inkasso' && config.projects.hasOwnProperty(project) && file) {
                 const hashSum = crypto.createHash('sha256');
+                // REVIEW: hashSum, what is the purpose of that variable?
                 const fileHash = idUser;
                 const fileName = 'fullmakt';
                 const fileType = mime.getExtension(file.mimetype);
                 if (fileType !== 'pdf')
+                // REVIEW: what if fileType can be different than 'pdf'? Add other cases
                     return res.status(500).json({requestID, message: 'Missing pdf file'});
                 await db.updateStatus(requestID, 3, '');
 
@@ -53,6 +57,7 @@ app.post('/api/extract', upload.single('file'), async (req, res) => {
                     const collectorName = debtCollectors[i].name;
                     const collectorEmail = debtCollectors[i].email;
                     const hashSum = crypto.createHash('sha256');
+                    // REVIEW: hashSum was declared above
                     const hashInput = `${idUser}-${idCollector}-${(new Date()).toISOString()}`;
                     logDebug('hashInput=', hashInput);
                     hashSum.update(hashInput);
@@ -69,6 +74,7 @@ app.post('/api/extract', upload.single('file'), async (req, res) => {
                             sender: config.projects[project].email.sender,
                             replyTo: config.projects[project].email.replyTo,
                             subject: 'Email subject,
+                            // REVIEW: missing apostrophe
                             templateId: config.projects[project].email.template.collector,
                             params: {
                                 downloadUrl: `https://url.go/download?requestKey=${requestKey}&hash=${hash}`,
@@ -94,6 +100,7 @@ app.post('/api/extract', upload.single('file'), async (req, res) => {
                         await db.setUserCollectorRequestKeyRes(requestKey, idUser, idCollector, resp);
 
                         if (!sentStatus[collectorName])
+                        // REVIEW: what is the purpose of adding 'if' statement here? sentStatus is empty object {}
                             sentStatus[collectorName] = {};
                         sentStatus[collectorName][collectorEmail] = resp;
 
@@ -135,6 +142,7 @@ app.post('/api/extract', upload.single('file'), async (req, res) => {
             }
             await db.updateStatus(requestID, 999, '');
             return res.json({requestID, step: 999, status: 'DONE', message: 'Done sending emails...'});
+            // REVIEW: above 'if' statements can be false, correct message
         } else
             return res.status(500).json({requestID, message: 'Missing requried input (requestID, project, file)'});
     }
